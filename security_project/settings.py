@@ -46,9 +46,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'ip_tracking',
     'django_ip_geolocation',
-    'ratelimit',
+    'ip_tracking',
 
     
 ]
@@ -71,12 +70,23 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 
-    # custom IP logging middleware here
-    'ip_tracking.middleware.IPLoggingMiddleware',
+    # custom middlewares
+    #'django_ip_geolocation.middleware.IpGeolocationMiddleware',
     'ip_tracking.middleware.BlockIPMiddleware',
-    'django_ip_geolocation.middleware.IpGeolocationMiddleware',
-
+    'ip_tracking.middleware.IPLoggingMiddleware',
+    'ip_tracking.middleware.RequestLoggingMiddleware',
 ]
+
+
+IP_GEOLOCATION_SETTINGS = {
+    "IP_GEOLOCATION_ENABLED": True,
+    "IP_GEOLOCATION_DATA_FIELDS": ["city", "country"],  # customize fields
+    "country_name": "Localhost",
+    "country_code2": "XX",
+}
+
+IP_GEOLOCATION_BACKEND = 'django_ip_geolocation.backends.ipapi.IpapiBackend'
+
 
 ROOT_URLCONF = 'security_project.urls'
 
