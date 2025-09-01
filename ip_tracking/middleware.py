@@ -1,5 +1,7 @@
 from django.utils import timezone
 from .models import RequestLog
+import django_ip_geolocation
+
 
 class IPLoggingMiddleware:
     def __init__(self, get_response):
@@ -37,7 +39,6 @@ import logging
 from django.http import HttpResponseForbidden
 from django.utils.timezone import now
 from django.core.cache import cache
-from ipgeolocation import IPGeolocationAPI
 from .models import RequestLog, BlockedIP
 
 
@@ -46,7 +47,7 @@ logger = logging.getLogger(__name__)
 class IPTrackingMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
-        self.geo_api = IPGeolocationAPI("YOUR_API_KEY")  # replace with real API key
+        self.geo_api = django_ip_geolocation("YOUR_API_KEY")  # replace with real API key
 
     def __call__(self, request):
         ip = self.get_client_ip(request)
@@ -100,31 +101,22 @@ from ip_tracking.models import BlockedIP
 class BlockIPMiddleware:
     """
     Middleware to block requests from blacklisted IP addresses.
+    Relies on django-ip-geolocation to detect client IP info.
     """
 
     def __init__(self, get_response):
         self.get_response = get_response
+        # Example: hardcoded blacklist, you can later store in DB
+        self.blacklisted_ips = ["127.0.0.1"]  
 
     def __call__(self, request):
-        ip_address = self.get_client_ip(request)
+        # django-ip-geolocation adds `request.geolocation`
+        client_ip = request.geolocation.get("ip", None) if hasattr(request, "geolocation") else None
 
-        # Check if IP is in BlockedIP
-        if BlockedIP.objects.filter(ip_address=ip_address).exists():
-            return HttpResponseForbidden("🚫 Access denied: Your IP is blocked.")
+        if client_ip in self.blacklisted_ips:
+            return HttpResponseForbidden("Access Denied: Your IP is blocked.")
 
         return self.get_response(request)
-
-    def get_client_ip(self, request):
-        """
-        Retrieves client IP address from request headers.
-        Handles cases where app is behind a proxy/load balancer.
-        """
-        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(",")[0].strip()
-        else:
-            ip = request.META.get("REMOTE_ADDR")
-        return ip
 
 # To use this middleware, add 'ip_tracking.middleware.BlockIPMiddleware' to MIDDLEWARE in settings.py
 # and ensure you have a BlockedIP model defined in models.py to manage blocked IPs
@@ -174,3 +166,21 @@ class GeoLoggingMiddleware(MiddlewareMixin):
         return ip
 # To use this middleware, add 'ip_tracking.middleware.GeoLoggingMiddleware' to MIDDLEWARE in settings.py
 # and ensure you have a RequestLog model defined in models.py to store the logs.    
+
+from .models import RequestLog
+
+class RequestLoggingMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
+        geo_data = getattr(request, "geo_data", {})
+        RequestLog.objects.create(
+            ip_address=request.META.get("REMOTE_ADDR"),
+            city=geo_data.get("city"),
+            country=geo_data.get("country"),
+            path=request.path,
+        )
+        return response
