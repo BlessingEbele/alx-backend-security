@@ -1,0 +1,14 @@
+-r requirements.txt   # include all production dependencies
+
+# Code quality
+black>=24.0,<25.0
+flake8>=6.0,<7.0
+isort>=5.12,<6.0
+
+# Testing
+pytest>=8.0,<9.0
+pytest-django>=4.8,<5.0
+coverage>=7.0,<8.0
+
+# Debugging & utilities
+django-debug-toolbar>=4.2,<5.0
